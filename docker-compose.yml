@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  xxe-toolkit:
+    image: ghcr.io/mr-xn/xxe-toolkits-server:latest
+    container_name: xxe-toolkits-server
+    restart: unless-stopped
+
+    environment:
+      TZ: "Asia/Shanghai"
+
+      # xxe-smb-server
+      XXE_SMB_PUBLIC_IP: "192.168.1.100"   # 用于 payload 中的 IP
+      XXE_SMB_WEB_PORT: "8080"             # HTTP 监听端口
+      XXE_SMB_SHARE_PATH: "/share"         # SMB 共享目录（容器内）
+
+      # fake-ftp-server
+      FAKE_FTP_PORT: "2121"
+      FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
+
+    ports:
+      - "8080:8080"   # HTTP (xxe-smb-server)
+      - "445:445"     # SMB (注意宿主机 445 可能冲突)
+      - "2121:2121"   # fake-ftp-server
+
+    volumes:
+      - ./share:/share
+      - ./logs:/var/log

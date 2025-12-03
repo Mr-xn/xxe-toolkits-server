@@ -49,7 +49,7 @@ python3 fake-ftp-server.py <port> [output_file]
 
 容器内部默认监听：
 
-- `XXE_SMB_WEB_PORT`（默认 `80`）  
+- `XXE_SMB_WEB_PORT`（默认 `8088`）  
   `xxe-smb-server.py` 的 HTTP 服务器，用于提供 DTD payload。
 - `445`  
   `SimpleSMBServer` 的 SMB 端口（**TCP 445**）。
@@ -60,7 +60,7 @@ python3 fake-ftp-server.py <port> [output_file]
 
 ```yaml
 ports:
-  - "8080:8080"   # HTTP (xxe-smb-server)
+  - "8088:8088"   # HTTP (xxe-smb-server)
   - "445:445"     # SMB
   - "2121:2121"   # fake-ftp-server
 ```
@@ -79,10 +79,10 @@ ports:
 
   对外提供给 XXE payload 使用的“公网 IP”或可达 IP，即脚本输出的 payload 中 `http://<public_ip>:<webport>/data.dtd` 的 IP 部分。
 
-- `XXE_SMB_WEB_PORT`（可选，默认 `80`）
+- `XXE_SMB_WEB_PORT`（可选，默认 `8088`）
 
   HTTP 服务器监听的端口。  
-  如果设置为 `8080`，则 payload 中使用 `http://<public_ip>:8080/data.dtd`。
+  如果设置为 `8088`，则 payload 中使用 `http://<public_ip>:8088/data.dtd`。
 
 - `XXE_SMB_SHARE_PATH`（可选，默认 `/tmp/share`）
 
@@ -137,7 +137,7 @@ cd xxe-toolkits-server
 
 ```yaml
 XXE_SMB_PUBLIC_IP: "你的对外IP"
-XXE_SMB_WEB_PORT: "8080"
+XXE_SMB_WEB_PORT: "8088"
 FAKE_FTP_PORT: "2121"
 FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
 ```
@@ -185,11 +185,11 @@ docker pull ghcr.io/mr-xn/xxe-toolkits-server:latest
 ```bash
 docker run --rm \
   -e XXE_SMB_PUBLIC_IP=192.168.1.100 \
-  -e XXE_SMB_WEB_PORT=8080 \
+  -e XXE_SMB_WEB_PORT=8088 \
   -e XXE_SMB_SHARE_PATH=/share \
   -e FAKE_FTP_PORT=2121 \
   -e FAKE_FTP_LOG_FILE=/var/log/ftp_paths.log \
-  -p 8080:8080 \
+  -p 8088:8088 \
   -p 445:445 \
   -p 2121:2121 \
   -v $(pwd)/share:/share \

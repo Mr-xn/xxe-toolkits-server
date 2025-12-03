@@ -6,7 +6,7 @@ LABEL description="Combined xxe-smb-server + fake-ftp-server for XXE exploitatio
 # 默认环境变量（可在运行时覆盖）
 ENV TZ=Asia/Shanghai \
     XXE_SMB_PUBLIC_IP=127.0.0.1 \
-    XXE_SMB_WEB_PORT=80 \
+    XXE_SMB_WEB_PORT=8088 \
     XXE_SMB_SHARE_PATH=/tmp/share \
     FAKE_FTP_PORT=2121 \
     FAKE_FTP_LOG_FILE=""
@@ -30,9 +30,9 @@ RUN pip install --no-cache-dir impacket
 RUN chmod +x /app/entrypoint.sh
 
 # 暴露端口：
-# - 80/XXE_SMB_WEB_PORT: HTTP（DTD payload）
+# - 8088/XXE_SMB_WEB_PORT: HTTP（DTD payload）
 # - 445: SMB（TCP，SimpleSMBServer）
 # - 2121/FAKE_FTP_PORT: 假 FTP server
-EXPOSE 80 445 2121
+EXPOSE 8088 445 2121
 
 ENTRYPOINT ["/app/entrypoint.sh"]

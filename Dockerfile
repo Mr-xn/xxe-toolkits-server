@@ -19,6 +19,7 @@ RUN apt-get update && \
       python3-dev \
       libffi-dev \
       libssl-dev \
+      procps \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

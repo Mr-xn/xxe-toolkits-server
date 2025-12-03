@@ -11,7 +11,7 @@ services:
 
       # xxe-smb-server
       XXE_SMB_PUBLIC_IP: "192.168.1.100"   # 用于 payload 中的 IP
-      XXE_SMB_WEB_PORT: "8080"             # HTTP 监听端口
+      XXE_SMB_WEB_PORT: "8088"             # HTTP 监听端口
       XXE_SMB_SHARE_PATH: "/share"         # SMB 共享目录（容器内）
 
       # fake-ftp-server
@@ -19,7 +19,7 @@ services:
       FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
 
     ports:
-      - "8080:8080"   # HTTP (xxe-smb-server)
+      - "8088:8088"   # HTTP (xxe-smb-server)
       - "445:445"     # SMB (注意宿主机 445 可能冲突)
       - "2121:2121"   # fake-ftp-server
 

@@ -3,7 +3,7 @@ set -e
 
 # xxe-smb-server.py 参数映射
 XXE_SMB_PUBLIC_IP="${XXE_SMB_PUBLIC_IP:-127.0.0.1}"    # public_ip
-XXE_SMB_WEB_PORT="${XXE_SMB_WEB_PORT:-80}"             # webport
+XXE_SMB_WEB_PORT="${XXE_SMB_WEB_PORT:-8088}"             # webport
 XXE_SMB_SHARE_PATH="${XXE_SMB_SHARE_PATH:-/tmp/share}" # -s/--share-path
 
 # fake-ftp-server.py 参数映射（原 1.py）

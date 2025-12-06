@@ -208,10 +208,12 @@ docker run --rm \
   -e XXE_SMB_WEB_PORT=8088 \
   -e XXE_SMB_SHARE_PATH=/share \
   -e FAKE_FTP_PORT=2121 \
+  -e FAKE_FTP_HTTP_PORT=8080 \
   -e FAKE_FTP_LOG_FILE=/var/log/ftp_paths.log \
   -p 8088:8088 \
   -p 445:445 \
   -p 2121:2121 \
+  -p 8080:8080 \
   -v $(pwd)/share:/share \
   -v $(pwd)/logs:/var/log \
   ghcr.io/mr-xn/xxe-toolkits-server:latest

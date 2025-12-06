@@ -15,16 +15,17 @@ services:
       XXE_SMB_SHARE_PATH: "/share"         # SMB 共享目录（容器内）
 
       # fake-ftp-server
+      XXE_FTP_PUBLIC_IP: "192.168.1.100"   # fake-ftp-server 用于 payload 中的 IP
       FAKE_FTP_PORT: "2121"
       FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
-      FAKE_FTP_HTTP_PORT: "8080"           # HTTP 端口 (用于提供 data.dtd)
+      FAKE_FTP_HTTP_PORT: "8087"           # HTTP 端口 (用于提供 data.dtd)
       FAKE_FTP_FILE_PATH: "/etc/passwd"    # 要读取的目标文件路径
 
     ports:
       - "8088:8088"   # HTTP (xxe-smb-server)
       - "445:445"     # SMB (注意宿主机 445 可能冲突)
       - "2121:2121"   # fake-ftp-server
-      - "8080:8080"   # HTTP (fake-ftp-server DTD)
+      - "8087:8087"   # HTTP (fake-ftp-server DTD)
 
     volumes:
       - ./share:/share

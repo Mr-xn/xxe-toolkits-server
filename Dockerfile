@@ -12,7 +12,8 @@ ENV TZ=Asia/Shanghai \
     FAKE_FTP_PORT=2121 \
     FAKE_FTP_LOG_FILE="" \
     FAKE_FTP_HTTP_PORT=8087 \
-    FAKE_FTP_FILE_PATH=/etc/passwd
+    FAKE_FTP_FILE_PATH=/etc/passwd \
+    FAKE_FTP_PASV_PORT=2122
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -38,6 +39,7 @@ RUN chmod +x /app/entrypoint.sh
 # - 445: SMB（TCP，SimpleSMBServer）
 # - 2121/FAKE_FTP_PORT: 假 FTP server
 # - 8087/FAKE_FTP_HTTP_PORT: HTTP (DTD payload) for fake-ftp-server
-EXPOSE 8088 445 2121 8087
+# - 2122/FAKE_FTP_PASV_PORT: FTP 被动模式端口
+EXPOSE 8088 445 2121 8087 2122
 
 ENTRYPOINT ["/app/entrypoint.sh"]

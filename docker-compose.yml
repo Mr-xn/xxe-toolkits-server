@@ -20,12 +20,14 @@ services:
       FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
       FAKE_FTP_HTTP_PORT: "8087"           # HTTP 端口 (用于提供 data.dtd)
       FAKE_FTP_FILE_PATH: "/etc/passwd"    # 要读取的目标文件路径
+      FAKE_FTP_PASV_PORT: "2122"           # FTP 被动模式端口 (Docker 场景必须)
 
     ports:
       - "8088:8088"   # HTTP (xxe-smb-server)
       - "445:445"     # SMB (注意宿主机 445 可能冲突)
       - "2121:2121"   # fake-ftp-server
       - "8087:8087"   # HTTP (fake-ftp-server DTD)
+      - "2122:2122"   # FTP 被动模式端口
 
     volumes:
       - ./share:/share

@@ -65,6 +65,8 @@ python3 fake-ftp-server.py 2121 -w 8087 -o data.log       # 保存捕获数据
   `fake-ftp-server.py` 的 FTP 监听端口。
 - `FAKE_FTP_HTTP_PORT`（默认 `8087`）  
   `fake-ftp-server.py` 的 HTTP 服务器端口，用于提供 `data.dtd`。
+- `FAKE_FTP_PASV_PORT`（默认 `2122`）  
+  `fake-ftp-server.py` 的 FTP 被动模式端口。Docker 环境必须使用固定端口，否则随机端口无法正确暴露。
 
 在提供的 `docker-compose.yml` 中示例映射为：
 
@@ -74,6 +76,7 @@ ports:
   - "445:445"     # SMB
   - "2121:2121"   # fake-ftp-server
   - "8087:8087"   # HTTP (fake-ftp-server DTD)
+  - "2122:2122"   # FTP 被动模式端口
 ```
 
 > 注意：宿主机的 445 端口可能已被系统或其他服务占用，必要时可以改成 `1445:445` 之类的映射。
@@ -134,6 +137,12 @@ python3 /app/xxe-smb-server/xxe-smb-server.py \
   XXE 攻击时要读取的目标文件路径。  
   Linux 系统可使用 `/etc/passwd`，Windows 系统可使用 `c:/windows/win.ini`。
 
+- `FAKE_FTP_PASV_PORT`（可选，默认 `2122`）
+
+  FTP 被动模式（PASV）使用的端口。  
+  **Docker 环境强烈建议配置此项**，否则 FTP 客户端在被动模式下会尝试连接随机端口，由于 Docker 未暴露这些端口会导致连接失败。  
+  设置为空字符串 `""` 可使用随机端口（仅适用于非 Docker 环境）。
+
 对应调用为：
 
 ```bash
@@ -141,7 +150,8 @@ python3 /app/fake-ftp-server/fake-ftp-server.py ${FAKE_FTP_PORT} \
   --ip ${XXE_FTP_PUBLIC_IP} \
   --http-port ${FAKE_FTP_HTTP_PORT} \
   --file ${FAKE_FTP_FILE_PATH} \
-  [--output ${FAKE_FTP_LOG_FILE}]
+  [--output ${FAKE_FTP_LOG_FILE}] \
+  [--pasv-port ${FAKE_FTP_PASV_PORT}]
 ```
 
 ---
@@ -165,6 +175,7 @@ XXE_SMB_WEB_PORT: "8088"
 XXE_FTP_PUBLIC_IP: "你的对外IP"
 FAKE_FTP_PORT: "2121"
 FAKE_FTP_HTTP_PORT: "8087"
+FAKE_FTP_PASV_PORT: "2122"   # FTP 被动模式端口
 FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
 ```
 
@@ -216,12 +227,14 @@ docker run --rm \
   -e XXE_FTP_PUBLIC_IP=192.168.1.100 \
   -e FAKE_FTP_PORT=2121 \
   -e FAKE_FTP_HTTP_PORT=8087 \
+  -e FAKE_FTP_PASV_PORT=2122 \
   -e FAKE_FTP_FILE_PATH=/etc/passwd \
   -e FAKE_FTP_LOG_FILE=/var/log/ftp_paths.log \
   -p 8088:8088 \
   -p 445:445 \
   -p 2121:2121 \
   -p 8087:8087 \
+  -p 2122:2122 \
   -v $(pwd)/share:/share \
   -v $(pwd)/logs:/var/log \
   ghcr.io/mr-xn/xxe-toolkits-server:latest

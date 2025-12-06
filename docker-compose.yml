@@ -17,11 +17,14 @@ services:
       # fake-ftp-server
       FAKE_FTP_PORT: "2121"
       FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
+      FAKE_FTP_HTTP_PORT: "8080"           # HTTP 端口 (用于提供 data.dtd)
+      FAKE_FTP_FILE_PATH: "/etc/passwd"    # 要读取的目标文件路径
 
     ports:
       - "8088:8088"   # HTTP (xxe-smb-server)
       - "445:445"     # SMB (注意宿主机 445 可能冲突)
       - "2121:2121"   # fake-ftp-server
+      - "8080:8080"   # HTTP (fake-ftp-server DTD)
 
     volumes:
       - ./share:/share

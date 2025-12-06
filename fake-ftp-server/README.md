@@ -14,13 +14,13 @@
 python3 fake-ftp-server.py <ftp_port> [选项]
 
 # 启动 FTP + HTTP 服务器
-python3 fake-ftp-server.py 2121 --http-port 8080
+python3 fake-ftp-server.py 2121 --http-port 8087
 
 # 指定目标文件和公网 IP
-python3 fake-ftp-server.py 2121 --http-port 8080 --file /etc/passwd --ip 192.168.1.100
+python3 fake-ftp-server.py 2121 --http-port 8087 --file /etc/passwd --ip 192.168.1.100
 
 # 保存捕获的数据到文件
-python3 fake-ftp-server.py 2121 --http-port 8080 --output data.log
+python3 fake-ftp-server.py 2121 --http-port 8087 --output data.log
 ```
 
 ## 命令行参数

